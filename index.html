@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EduPredict – Student Grade Prediction System</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <!-- PINNED Chart.js version — fixes growing chart bug -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<!-- ========================= AUTH SCREEN ========================= -->
+<div id="auth-screen" class="screen active">
+  <div class="auth-bg">
+    <div class="orb orb1"></div>
+    <div class="orb orb2"></div>
+    <div class="orb orb3"></div>
+  </div>
+  <div class="auth-container">
+    <div class="brand">
+      <div class="brand-icon">📊</div>
+      <h1>EduPredict</h1>
+      <p>AI-Powered Academic Performance System</p>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="tab-btn active" onclick="switchTab('login')">Login</button>
+      <button class="tab-btn"        onclick="switchTab('register')">Register</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="login-form" class="auth-form active">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="you@example.com" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" />
+      </div>
+      <div id="login-error" class="error-msg"></div>
+      <button class="btn-primary" onclick="loginUser()">
+        <span>Login</span><span>→</span>
+      </button>
+      <p class="switch-text">No account? <a onclick="switchTab('register')">Register here</a></p>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="register-form" class="auth-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="reg-name" placeholder="John Doe" />
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="reg-email" placeholder="you@example.com" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="reg-password" placeholder="Min 6 characters" />
+        </div>
+        <div class="form-group">
+          <label>Date of Birth</label>
+          <input type="date" id="reg-dob" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Class / Grade</label>
+          <input type="text" id="reg-class" placeholder="e.g. 10th, B.Tech 2nd Yr" />
+        </div>
+        <div class="form-group">
+          <label>Academic Year Duration</label>
+          <select id="reg-duration">
+            <option value="">Select...</option>
+            <option value="6 months">6 Months (Semester)</option>
+            <option value="1 year">1 Year (Annual)</option>
+            <option value="2 semesters">2 Semesters</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Previous Year Percentage (%)</label>
+        <input type="number" id="reg-prev-percent" placeholder="e.g. 78.5" min="0" max="100" step="0.1" />
+      </div>
+      <div id="register-error" class="error-msg"></div>
+      <button class="btn-primary" onclick="registerUser()">
+        <span>Create Account</span><span>→</span>
+      </button>
+      <p class="switch-text">Have account? <a onclick="switchTab('login')">Login here</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ========================= DASHBOARD ========================= -->
+<div id="dashboard-screen" class="screen">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">📊 EduPredict</div>
+    <nav class="sidebar-nav">
+      <a class="nav-item active" onclick="showSection('overview')">       <span class="nav-icon">🏠</span> Overview</a>
+      <a class="nav-item"        onclick="showSection('assignments')">    <span class="nav-icon">📝</span> Assignments</a>
+      <a class="nav-item"        onclick="showSection('internals')">      <span class="nav-icon">📋</span> Internal Exams</a>
+      <a class="nav-item"        onclick="showSection('daily-progress')"> <span class="nav-icon">📅</span> Daily Progress</a>
+      <a class="nav-item"        onclick="showSection('prediction')">     <span class="nav-icon">🤖</span> Grade Prediction</a>
+      <a class="nav-item"        onclick="showSection('analytics')">      <span class="nav-icon">📈</span> Analytics</a>
+    </nav>
+    <button class="logout-btn" onclick="logoutUser()">🚪 Logout</button>
+  </aside>
+
+  <main class="main-content">
+
+    <header class="dashboard-header">
+      <div>
+        <h2 id="section-title">Overview</h2>
+        <p  id="header-date"></p>
+      </div>
+      <div class="user-pill">
+        <span id="user-avatar">JD</span>
+        <span id="user-name-display">Student</span>
+      </div>
+    </header>
+
+    <!-- ===== OVERVIEW ===== -->
+    <section id="overview" class="content-section active">
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">📝</div>
+          <div class="stat-info">
+            <span class="stat-label">Avg Assignment</span>
+            <span class="stat-value" id="stat-assignment">--/5</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📋</div>
+          <div class="stat-info">
+            <span class="stat-label">Avg Internal</span>
+            <span class="stat-value" id="stat-internal">--/50</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📅</div>
+          <div class="stat-info">
+            <span class="stat-label">Days Tracked</span>
+            <span class="stat-value" id="stat-days">0</span>
+          </div>
+        </div>
+        <div class="stat-card highlight">
+          <div class="stat-icon">🎯</div>
+          <div class="stat-info">
+            <span class="stat-label">Predicted Grade</span>
+            <span class="stat-value" id="stat-grade">--</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <h3>📈 Performance Trend</h3>
+          <div class="chart-wrap"><canvas id="overview-chart"></canvas></div>
+        </div>
+        <div class="card">
+          <h3>🏆 Performance Radar</h3>
+          <div class="chart-wrap"><canvas id="radar-chart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>📅 Recent Daily Logs</h3>
+        <div id="recent-logs" class="log-list">
+          <p class="empty-msg">No logs yet. Add your first daily progress!</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ===== ASSIGNMENTS ===== -->
+    <section id="assignments" class="content-section">
+      <div class="card">
+        <h3>📝 Assignment Marks (Out of 5 each)</h3>
+        <p class="section-desc">Enter marks for your 2 assignments below.</p>
+        <div class="marks-grid">
+          <div class="mark-input-card">
+            <div class="mark-badge">A1</div>
+            <label>Assignment 1</label>
+            <input type="number" id="assign1" placeholder="0–5" min="0" max="5" step="0.5" />
+            <span class="mark-max">out of 5</span>
+          </div>
+          <div class="mark-input-card">
+            <div class="mark-badge">A2</div>
+            <label>Assignment 2</label>
+            <input type="number" id="assign2" placeholder="0–5" min="0" max="5" step="0.5" />
+            <span class="mark-max">out of 5</span>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="saveAssignments()">💾 Save Assignments</button>
+        <div id="assign-msg" class="success-msg"></div>
+      </div>
+      <div class="card">
+        <h3>📊 Assignment Comparison</h3>
+        <div class="chart-wrap"><canvas id="assign-chart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- ===== INTERNALS ===== -->
+    <section id="internals" class="content-section">
+      <div class="card">
+        <h3>📋 Internal Exam Marks (Out of 50 each)</h3>
+        <p class="section-desc">Enter marks for your 2 internal exams below.</p>
+        <div class="marks-grid">
+          <div class="mark-input-card">
+            <div class="mark-badge">I1</div>
+            <label>Internal Exam 1</label>
+            <input type="number" id="internal1" placeholder="0–50" min="0" max="50" />
+            <span class="mark-max">out of 50</span>
+          </div>
+          <div class="mark-input-card">
+            <div class="mark-badge">I2</div>
+            <label>Internal Exam 2</label>
+            <input type="number" id="internal2" placeholder="0–50" min="0" max="50" />
+            <span class="mark-max">out of 50</span>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="saveInternals()">💾 Save Internal Marks</button>
+        <div id="internal-msg" class="success-msg"></div>
+      </div>
+      <div class="card">
+        <h3>📊 Internal Exam Comparison</h3>
+        <div class="chart-wrap"><canvas id="internal-chart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- ===== DAILY PROGRESS ===== -->
+    <section id="daily-progress" class="content-section">
+      <div class="card">
+        <h3>📅 Log Today's Progress</h3>
+        <p class="section-desc">Fill in your daily study data for AI-powered analysis.</p>
+        <div class="daily-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label>📚 Hours Studied Today</label>
+              <input type="number" id="d-hours" placeholder="e.g. 3" min="0" max="24" step="0.5"/>
+            </div>
+            <div class="form-group">
+              <label>🎓 Physical Attendance (%)</label>
+              <input type="number" id="d-attendance" placeholder="e.g. 85" min="0" max="100"/>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>😴 Sleep Hours</label>
+              <input type="number" id="d-sleep" placeholder="e.g. 7" min="0" max="24" step="0.5"/>
+            </div>
+            <div class="form-group">
+              <label>☕ Rest / Break Hours</label>
+              <input type="number" id="d-rest" placeholder="e.g. 2" min="0" max="24" step="0.5"/>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>🧠 Self Confidence (1–10)</label>
+              <input type="number" id="d-confidence" placeholder="e.g. 7" min="1" max="10"/>
+            </div>
+            <div class="form-group">
+              <label>📱 Distraction Hours</label>
+              <input type="number" id="d-distraction" placeholder="e.g. 1.5" min="0" max="24" step="0.5"/>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>📝 Topics Covered Today</label>
+            <input type="text" id="d-topics" placeholder="e.g. Linear Equations, Photosynthesis"/>
+          </div>
+          <div class="form-group">
+            <label>💬 How do you feel today?</label>
+            <select id="d-mood">
+              <option value="5">😄 Excellent – Very productive!</option>
+              <option value="4">🙂 Good – Decent day</option>
+              <option value="3">😐 Okay – Average</option>
+              <option value="2">😔 Bad – Struggled today</option>
+              <option value="1">😫 Very Bad – Couldn't focus</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="saveDailyProgress()">✅ Save Today's Progress</button>
+        <div id="daily-msg" class="success-msg"></div>
+      </div>
+      <div class="card">
+        <h3>📈 Daily Study Hours – Last 7 Days</h3>
+        <div class="chart-wrap"><canvas id="daily-chart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- ===== GRADE PREDICTION ===== -->
+    <section id="prediction" class="content-section">
+      <div class="card prediction-card">
+        <h3>🤖 AI Grade Prediction</h3>
+        <p class="section-desc">
+          Our ML model analyses your assignments, internal marks, attendance,
+          study hours and daily habits to predict your final grade.
+        </p>
+        <button class="btn-primary" onclick="runPrediction()"
+                style="max-width:280px;margin:20px auto 0;">
+          🔮 Predict My Grade
+        </button>
+        <div id="prediction-result" class="prediction-result hidden">
+          <div class="grade-circle"><span id="pred-grade-letter">A</span></div>
+          <div class="pred-details">
+            <div class="pred-score">
+              Predicted Score: <strong id="pred-score-val">--</strong>%
+            </div>
+            <div id="pred-breakdown" class="pred-breakdown"></div>
+            <div id="pred-advice"    class="pred-advice"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>📊 Score Contribution Breakdown</h3>
+        <div class="chart-wrap"><canvas id="prediction-chart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- ===== ANALYTICS ===== -->
+    <section id="analytics" class="content-section">
+      <div class="card">
+        <h3>📈 Predicted Score Over Time</h3>
+        <div class="chart-wrap"><canvas id="analytics-chart"></canvas></div>
+      </div>
+      <div class="two-col">
+        <div class="card">
+          <h3>😴 Sleep vs ML Score</h3>
+          <div class="chart-wrap"><canvas id="sleep-chart"></canvas></div>
+        </div>
+        <div class="card">
+          <h3>📚 Study Hours vs ML Score</h3>
+          <div class="chart-wrap"><canvas id="study-chart"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div id="loading" class="loading-overlay hidden">
+  <div class="spinner"></div>
+  <p>Please wait...</p>
+</div>
+
+<script src="firebase-config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
